@@ -3,7 +3,7 @@ const axios = require("axios");
 class ExchangeFunctions {
 
     constructor() {
-        this.apiUrl = "https://api.mymonero.com:8443/cx";
+        this.apiUrl = "https://api.mymonero.com:443/cx";
         // this.apiVersion = "v3";
         // this.currencyToExchange = "xmr2btc";
         this.offer = {};
@@ -117,6 +117,49 @@ class ExchangeFunctions {
         });
     }
     
+    getOffer(in_currency, out_currency, amount, offerType) {
+        return new Promise((resolve, reject) => {
+            if (offerType == "in") {
+                this.getOfferWithInAmount(in_currency, out_currency, amount).then(response => {
+                    resolve(response);
+                }).catch(error => {
+                    reject(error);
+                });
+            } else if (offerType == "out") {
+                this.getOfferWithOutAmount(in_currency, out_currency, amount).then(response => {
+                    resolve(response);
+                }).catch(error => {
+                    reject(error);
+                });
+            } else {
+                // TODO: Handle error a bit more elegantly
+                let error = new Error("Please ensure you have specified an amount to exchange");
+                console.log(error);
+                reject(error);
+            }
+        })
+        // let data = {
+        //     in_amount,
+        //     in_currency,
+        //     out_currency
+        // }
+
+        // const self = this;
+        // self.offer_type = "in_amount";
+        // let endpoint = `${self.apiUrl}/get_offer`;
+        //     axios.post(endpoint, data)
+        //         .then(function (response) {
+        //             console.log('resp from getOfferwithtinamount', response);
+        //             self.offer = response.data;
+        //             resolve(self.offer);
+        //         })
+        //         .catch(function (error) {
+        //             console.log(error);
+        //             reject(error);
+        //         });
+        // });
+    }
+    
 
     
     getOrderStatus() {
@@ -147,15 +190,15 @@ class ExchangeFunctions {
         return this.orderStatus.seconds_till_timeout;
     }
 
-    createOrder(out_address, refund_address) {
+    createOrder(out_address, refund_address, in_currency = "XMR", out_currency = "BTC") {
 
         let self = this;
         let endpoint = `${self.apiUrl}/create_order`;
         let data = {
             out_address,
             refund_address,
-            in_currency: "XMR",
-            out_currency: "BTC",
+            in_currency,
+            out_currency,
             ...self.offer
         }
 
@@ -165,7 +208,6 @@ class ExchangeFunctions {
         } else if (self.offer_type == "in_amount") {
             delete data.out_amount;
         }
-        console.log(data);
         return new Promise((resolve, reject) => {
             try {
                 axios.post(endpoint, data)
@@ -199,6 +241,23 @@ class ExchangeFunctions {
                     self.currentRates.minimum_xmr = self.currentRates.in_min;
                     self.currentRates.maximum_xmr = self.currentRates.in_max;
                     resolve(response);
+                }).catch((error) => {
+                    reject(error);
+                })
+        });
+    }
+
+    getCurrencyPairs(in_currency = "XMR") {
+        let self = this;
+        return new Promise((resolve, reject) => {
+            let data = {
+                "in_currency": in_currency
+            }
+            let endpoint = `${self.apiUrl}/get_pairs`;
+            axios.post(endpoint, data)
+                .then((response) => {
+                    self.enabledCurrencies = response.data.out_currencies;
+                    resolve(response.data);
                 }).catch((error) => {
                     reject(error);
                 })
